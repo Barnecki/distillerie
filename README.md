@@ -64,6 +64,7 @@ distillerie/
 │   ├── dict_fruits.php         — Dictionnaire fruits
 │   ├── dict_futs.php           — Dictionnaire fûts
 │   ├── dict_nettoyage.php      — Dictionnaire nettoyage
+│   ├── autodiag.php            — Autodiagnostic runtime du module
 │   ├── import_productions.php  — Import masse depuis Excel
 │   ├── integration.php         — Intégrations externes
 │   └── setup.php               — Configuration module
@@ -160,16 +161,18 @@ distillerie/
 
 | Permission | ID | Description |
 |-----------|----|-------------|
-| read | 500001 | Lecture globale |
-| write | 500002 | Écriture globale |
-| delete | 500003 | Suppression globale |
-| distillation.read | 500010 | Lecture distillations |
-| distillation.write | 500011 | Écriture distillations |
-| production.read | 500020 | Lecture productions |
-| production.write | 500021 | Écriture productions |
-| registre.read | 500030 | Lecture registres |
-| registre.write | 500031 | Écriture registres |
-| admin | 500100 | Administration module |
+| read | 25000401 | Lecture globale |
+| write | 25000402 | Écriture globale |
+| delete | 25000403 | Suppression globale |
+| distillation.read | 25000411 | Lecture distillations |
+| distillation.write | 25000412 | Écriture distillations |
+| production.read | 25000421 | Lecture productions |
+| production.write | 25000422 | Écriture productions |
+| registre.read | 25000431 | Lecture registres |
+| registre.write | 25000432 | Écriture registres |
+| admin | 25000499 | Administration module |
+
+> IDs au pattern `$this->numero . sprintf("%02d", ...)` — module ID officiel **250004** (plage BARNECKI 250000-250019).
 
 ---
 
@@ -189,8 +192,9 @@ Distillerie (top menu)
 │   └── Nouveau registre
 ├── Déclarations mensuelles
 └── Configuration
-    ├── Paramètres
+    ├── Paramètres (FormSetup : entrepôt fiscal, unités, taux)
     ├── Import productions
+    ├── Autodiagnostic (contrôles runtime)
     └── À propos
 ```
 
@@ -221,4 +225,4 @@ Format attendu : fichier `.xlsx` avec :
 
 Voir [ChangeLog.md](ChangeLog.md) pour l'historique complet.
 
-**Version actuelle : 0.8.2**
+**Version actuelle : 0.9.0**

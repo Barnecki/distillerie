@@ -2,6 +2,55 @@
 
 ---
 
+## [0.9.0] — 2026-07-01
+
+### Ajouté
+- **Page Autodiagnostic** (`admin/autodiag.php`) — onglet "Autodiagnostic" dans Configuration. Contrôles runtime en conditions réelles :
+  - Existence et comptage des 7 tables principales + 7 dictionnaires
+  - Droits en base `llx_rights_def` (détection des anciens IDs 5000xx à migrer)
+  - Chargement des 9 classes du module + instanciation (getNextRef, getAllActive)
+  - Cohérence fichier VERSION ↔ descripteur, module activé, numero = 250004
+  - Environnement : PHP, ZipArchive (import Excel), répertoire temp
+  - Score global avec badges OK/!/KO par contrôle
+- Registre des IDs de droits (25000401-25000499) documenté dans `CLAUDE.md` avec plages libres
+
+### Modifié
+- **`admin/setup.php` nettoyé** : les 13 paramètres d'exemple ModuleBuilder (MYPARAM1-13) remplacés par 6 paramètres métier réels via FormSetup :
+  - Section Entrepôt fiscal : DISTILLERIE_NUMERO_ENTREPOT, DISTILLERIE_SIRET, DISTILLERIE_RAISON_SOCIALE
+  - Section Production : DISTILLERIE_UNITE_VOLUME (l/ml), DISTILLERIE_TAUX_PERTES_DEFAUT, DISTILLERIE_IMPORT_AUTO_FRUITS (oui/non)
+- Agent de contrôle : `admin/autodiag.php` et `test/agent_controle.php` ajoutés aux fichiers structurels vérifiés
+
+### Vérifié
+- **Dépôt GitHub `Barnecki/distillerie` opérationnel** : fichier VERSION accessible sur main → `url_last_version` fonctionnel (détection auto de mise à jour dans Dolibarr)
+- Score agent : **100%** — 42 contrôles passés
+
+---
+
+
+## [0.8.3] — 2026-07-01
+
+### ⚠️ MIGRATION REQUISE
+Après installation : **désactiver puis réactiver le module**, puis **réattribuer les permissions aux utilisateurs/groupes** (les IDs de droits ont changé, les anciens droits en base ne correspondent plus).
+
+### Modifié
+- **ID module officiel : `250004`** (plage réservée BARNECKI SPIRITS 250000-250019) — remplace le placeholder `500189`
+- **IDs de permissions migrés** vers le pattern anti-collision du skill `$this->numero . sprintf("%02d", ...)` :
+  - Global : 500001/2/3 → 25000401/02/03
+  - Distillation : 500010/11 → 25000411/12
+  - Production : 500020/21 → 25000421/22
+  - Registre : 500030/31 → 25000431/32
+  - Admin : 500100 → 25000499
+- Tests PHPUnit : `$module_id` mis à jour → 250004
+
+### Agent de contrôle (v2)
+- Nouveau contrôle : **plage ID BARNECKI** (erreur critique si numero hors 250000-250019)
+- Nouveau contrôle : **pattern concaténation des IDs de droits** (warning si IDs en dur)
+- Nouveau contrôle [13/13] : **cohérence des dictionnaires** entre `$this->dictionaries`, `init()` (CREATE TABLE) et `remove()` (DROP)
+- Score : **100%** — 40 contrôles passés, 0 erreur, 0 avertissement
+
+---
+
+
 ## [0.8.2] — 2026-05-18
 
 ### Ajouté
