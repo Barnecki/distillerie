@@ -246,4 +246,4 @@ Format attendu : fichier `.xlsx` avec :
 
 Voir [ChangeLog.md](ChangeLog.md) pour l'historique complet.
 
-**Version actuelle : 0.13.4**
+**Version actuelle : 0.13.5**

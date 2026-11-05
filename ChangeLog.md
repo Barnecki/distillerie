@@ -2,6 +2,15 @@
 
 ---
 
+## [0.13.5] — 2026-11-05
+
+### Documentation (aucun changement de code)
+- **CLAUDE.md** : sections regroupées et corrigées — suivi de distillation (date de ligne `date_line`, repli déduit), nouvelle section PDF de la distillation (mise en page, pied de page, piège TCPDF `setPage`/`SetAutoPageBreak`), table `dist_distil_line`, classe `DistImport`, SimpleXLSX en flux, liste exacte des onglets de configuration, **6 dictionnaires natifs déclarés (et non 7 : Alambic géré par page dédiée)**, bouton de test Tuya (reste dans Intégrations, retiré de la fiche), processus de livraison réel, harness de tests et ses limites, état réel du contrôle qualité.
+- **EVOLUTIONS.md** : #7 (import incrémental) retiré car livré, #2 mis à jour (volumétrie 0.13.1), nouveaux points #16 (compléments PDF / reprise), #17 (tables inutilisées), #18 (validation sur instance réelle).
+- **INSTALL.md** : réécrit — prérequis (extensions zip/xml), mise à jour sans désactivation via SQL Upgrade, réglages PHP de l'import (`upload_max_filesize`, `post_max_size`, `max_input_vars`) et limites du module, configuration Tuya, vérifications, liste complète des tables.
+
+---
+
 ## [0.13.4] — 2026-11-04
 
 ### Export PDF de la distillation : mise en page
