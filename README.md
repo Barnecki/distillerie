@@ -1,6 +1,6 @@
 # Module Distillerie — Dolibarr
 
-Module externe Dolibarr (v21.x+) dédié à la gestion de la production d'alcool artisanale (rhum, eau-de-vie, etc.) avec traçabilité complète des étapes de production, suivi des distillations, gestion des registres douaniers et import de données historiques.
+Module externe Dolibarr (v21+, PHP 8.2+) dédié à la gestion de la production d'alcool artisanale (rhum, eau-de-vie, etc.) avec traçabilité complète des étapes de production, suivi des distillations, gestion des registres douaniers et import de données historiques.
 
 ---
 
@@ -19,6 +19,7 @@ Module externe Dolibarr (v21.x+) dédié à la gestion de la production d'alcool
 ### 🔥 Distillations
 - Gestion des distillations liées aux productions
 - Lignes de suivi (Tête, Cœur, Queue : volumes ml et TAV %)
+- Capture automatique du compteur électrique atelier (Tuya Cloud : puissance, énergie, température) à chaque ligne — voir `admin/integration.php`
 - Dashboard distillation avec graphiques (Chart.js)
 
 ### 📋 Registres
@@ -67,6 +68,7 @@ distillerie/
 │   ├── autodiag.php            — Autodiagnostic runtime du module
 │   ├── import_productions.php  — Import masse depuis Excel
 │   ├── integration.php         — Intégrations externes
+│   ├── sql_upgrade.php         — Diagnostic et correction du schéma SQL
 │   └── setup.php               — Configuration module
 ├── class/
 │   ├── distaudit.class.php            — Journalisation audit
@@ -82,14 +84,14 @@ distillerie/
 │   ├── distmouvement.class.php        — Mouvements registre
 │   ├── distprod.class.php             — Productions
 │   ├── distprodstep.class.php         — Étapes de production
-│   ├── distregistry.class.php         — Registres
-│   └── simplexlsx.class.php           — Lecture Excel (legacy)
+│   └── distregistry.class.php         — Registres
 ├── core/modules/
 │   ├── modDistillerie.class.php       — Descripteur module
 │   └── distillerie/doc/
 │       └── pdf_declaration_mensuelle.modules.php
 ├── includes/
-│   └── SimpleXLSX.php          — Librairie lecture XLSX autonome
+│   ├── SimpleXLSX.php          — Librairie lecture XLSX autonome
+│   └── SimpleXLSXWriter.php    — Librairie écriture XLSX autonome
 ├── langs/
 │   ├── fr_FR/distillerie.lang  — Traductions français
 │   └── en_US/distillerie.lang  — Traductions anglais
@@ -124,8 +126,24 @@ distillerie/
 ├── distmouvement_card.php
 ├── distdeclaration_generate.php
 ├── production_step.php
-└── production_step_edit.php
+├── production_step_edit.php
+└── test/
+    └── agent_controle.php       — Agent de contrôle qualité statique (CLI)
 ```
+
+---
+
+## Contrôle qualité (agent statique)
+
+```bash
+php test/agent_controle.php [chemin_module]
+```
+
+18 familles de contrôles : structure fichiers, descripteur ModuleBuilder (IDs, plage BARNECKI 250000-250019, dictionnaires), bootstrap `main.inc.php`, sécurité (CSRF/GETPOST/escape), pagination, pièges TCPDF, inclusions, redirections POST, fichiers `.lang`, classes `CommonObject`, pattern SQL sécurisé, cohérence dictionnaires (`init()`/`remove()`), piège `information_schema` (`DATABASE()` vs `database_name`), tableaux imbriqués dans `multiselectarray()`, boutons d'action avec libellé traduit, migration de colonnes ajoutées après installation, anti-régression noms de colonnes.
+
+Score cible : **100%**, à exécuter avant chaque nouvelle version.
+
+Complémentaire : `admin/autodiag.php` (Configuration → Autodiagnostic) pour les contrôles runtime en conditions réelles (tables, droits, classes chargées), et `admin/sql_upgrade.php` (Configuration → SQL Upgrade) pour vérifier et corriger en un clic l'état du schéma SQL en production, sans désactiver/réactiver le module.
 
 ---
 
@@ -195,6 +213,7 @@ Distillerie (top menu)
     ├── Paramètres (FormSetup : entrepôt fiscal, unités, taux)
     ├── Import productions
     ├── Autodiagnostic (contrôles runtime)
+    ├── SQL Upgrade (diagnostic/correction schéma SQL)
     └── À propos
 ```
 
@@ -209,6 +228,7 @@ Format attendu : fichier `.xlsx` avec :
 - Étapes créées avec rang automatique (RECOLTE=10, NETTOYAGE=20, BROYAGE=30…)
 - Fruits inconnus créés automatiquement dans `dist_dict_fruits`
 - Toutes les données d'étapes stockées en JSON dans `json_data`
+- Références déjà existantes : ignorées (défaut) ou mises à jour (mode UPDATE, lignes cochées ; production brouillon, distillation encore « Importée »)
 
 ---
 
@@ -217,6 +237,7 @@ Format attendu : fichier `.xlsx` avec :
 | Librairie | Usage | Chemin |
 |-----------|-------|--------|
 | SimpleXLSX | Lecture fichiers .xlsx (ZipArchive natif PHP) | `includes/SimpleXLSX.php` |
+| SimpleXLSXWriter | Écriture fichiers .xlsx (ZipArchive natif PHP, styles de base) | `includes/SimpleXLSXWriter.php` |
 | Chart.js v3.9.1 | Graphiques dashboards | CDN |
 
 ---
@@ -225,4 +246,4 @@ Format attendu : fichier `.xlsx` avec :
 
 Voir [ChangeLog.md](ChangeLog.md) pour l'historique complet.
 
-**Version actuelle : 0.9.0**
+**Version actuelle : 0.13.4**
