@@ -151,7 +151,7 @@ Constantes enregistrées par l'écran de configuration :
 | registre.read / write | 25000431 / 25000432 | Registres, mouvements, sites, locaux, stock, inventaires, documents d'accompagnement |
 | admin | 25000499 | Administration du module |
 
-IDs au pattern `$this->numero . sprintf("%02d", ...)`. Des droits dédiés Sites / Locaux sont envisagés (EVOLUTIONS #37).
+IDs au pattern `$this->numero . sprintf("%02d", ...)`.
 
 ---
 
@@ -206,7 +206,7 @@ distillerie/
 │           distdeclaration_generate, distdocaccomp_list, distsite_(list|card),
 │           distlocal_(list|card|stock), diststock_recon, distinventaire_(list|card),
 │           production_step(_edit), distillerieindex, check_tables
-└── README.md · INSTALL.md · ChangeLog.md · EVOLUTIONS.md · CLAUDE.md · VERSION
+└── README.md · INSTALL.md · ChangeLog.md · VERSION
 ```
 
 ---
@@ -308,9 +308,7 @@ php test/harness/run.php [filtre]             # harnais d'exécution
 ## Documentation et versions
 
 - [ChangeLog.md](ChangeLog.md) — historique complet
-- [EVOLUTIONS.md](EVOLUTIONS.md) — état des lieux, feuille de route par phases, points à valider avec la douane
 - [INSTALL.md](INSTALL.md) — installation et mise à jour
-- [CLAUDE.md](CLAUDE.md) — consignes de développement, règles dures, pièges
 - `doc/` — conformité ModuleBuilder, règles CGI, plan d'implémentation, import, tests dashboards
 
 **Version actuelle : 0.23.0**

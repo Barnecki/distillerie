@@ -22,7 +22,7 @@
 - **Règles de régime bloquantes, à la demande** : les six contrôles du régime douanier (production sans destination, sortie sans origine, production hors douane, hors douane → sous douane, DAE depuis un local hors douane, DSA depuis un local sous douane) restent de **simples avertissements par défaut**. Configuration > Automatisations > « Règles du régime douanier rendues bloquantes » : cochez celles que la douane ou le comptable a confirmées ; le mouvement ne peut alors plus être enregistré **ni validé** tant qu'elles ne sont pas respectées (un brouillon existant reste en brouillon). La mise à la consommation reste une information, jamais bloquante.
 - **Mise à la consommation dans la déclaration mensuelle** : bloc dédié (page de génération et PDF) = mouvements **validés** d'un local sous douane vers un local hors douane (régimes figés sur le mouvement, donc l'historique ne bouge pas si un local change de régime), cumul par produit en litres et alcool pur, corrections négatives comprises ; les brouillons concernés et les unités inconnues sont signalés. La liquidation des accises n'est **pas** calculée (taux à confirmer).
 
-### Non retenu (voir EVOLUTIONS #35)
+### Non retenu
 - **Local par défaut à l'import Excel** : l'import Excel crée des productions, pas des mouvements de registre ; sans objet. Le rattachement automatique relève des mouvements issus des distillations (#39).
 - **Régime dans les exports DRM / DTI+** : aucune règle confirmée ; non ajouté pour ne pas altérer un format officiel.
 
@@ -41,7 +41,7 @@
 - `t_20_non_apurement.php` : 82 contrôles (11 pour l'import : registre choisi, doublons, dates, virgule, registre inconnu, XML illisible, entité externe) ; mutation vérifiée (registre figé à 1).
 - **À valider sur ton instance** : importer un fichier DAE XML en choisissant un registre autre que le premier, vérifier que les documents apparaissent dans « Documents d'accompagnement » de ce registre, et qu'un second import du même fichier n'ajoute rien.
 
-### À valider avec la douane (notés dans EVOLUTIONS #6)
+### À valider avec la douane
 - Règle d'apurement : délai exact, documents concernés, modèle officiel du relevé de non-apurement.
 - Entrées : une entrée avec DAE ne crée pas de document à apurer (document reçu, pas émis) ; à confirmer.
 - Le délai de 30 jours avant « en retard » est validé comme repère de suivi interne.
@@ -122,7 +122,7 @@
 ### Ajouté
 - **Mouvements de registre rattachés aux locaux** : local d'origine et local de destination (facultatifs) à la création d'un mouvement ; sur le brouillon, section « Locaux du mouvement » pour les renseigner ou les corriger (journalisé) ; colonnes Origine / Destination et filtre par local dans la liste ; nombre de mouvements rattachés et lien vers la liste filtrée sur la fiche du local.
 - **Régime douanier figé** : le régime (sous douane / hors douane) du local est copié sur le mouvement à la saisie puis relu et figé à la validation ; modifier le local ensuite ne réécrit pas un mouvement validé.
-- **Contrôle de cohérence** (`DistMouvement::controlLocaux()`) : **bloquant** si un local appartient à un site d'un autre registre ou n'existe pas ; **avertissements** non bloquants (pas de local de destination/d'origine, production en entrepôt hors douane, passage hors douane → sous douane, DAE depuis un local hors douane, DSA depuis un local sous douane) ; **information** « mise à la consommation » (sous douane → hors douane), avec badge sur la fiche et la liste. **Le régime ne bloque pas encore les mouvements** : seules les règles confirmées par la douane le feront (EVOLUTIONS #35).
+- **Contrôle de cohérence** (`DistMouvement::controlLocaux()`) : **bloquant** si un local appartient à un site d'un autre registre ou n'existe pas ; **avertissements** non bloquants (pas de local de destination/d'origine, production en entrepôt hors douane, passage hors douane → sous douane, DAE depuis un local hors douane, DSA depuis un local sous douane) ; **information** « mise à la consommation » (sous douane → hors douane), avec badge sur la fiche et la liste. **Le régime ne bloque pas encore les mouvements** : seules les règles confirmées par la douane le feront.
 - **Suppression d'un local refusée** tant que des mouvements y sont rattachés.
 - Les corrections d'un mouvement reprennent ses locaux.
 
@@ -142,10 +142,6 @@
 - **« Chai » devient « Local » partout** (noms internes compris) : classe `DistChai` → `DistLocal`, table `dist_chai` → `dist_local`, colonne `nom_chai` → `nom_local`, pages `distchai_*.php` → `distlocal_*.php`, clés de langue `DistChai*` → `DistLocal*`, `sql/llx_dist_chai.sql` → `sql/llx_dist_local.sql`, références `CHAI-nnn` → `LOC-nnn`. La **catégorie « chai »** d'un local est conservée (un chai est un type de local).
 - **Migration non destructive et idempotente** (`distillerie_migrate_chai_to_local()`) : exécutée à l'ouverture des pages Sites/Locaux, à l'activation du module et dans SQL Upgrade. La table existante est **renommée** (données conservées), la colonne renommée, les références `CHAI-nnn` réécrites en `LOC-nnn`. Si l'activation a créé une table `dist_local` vide, elle est remplacée par l'ancienne ; si les deux tables contiennent des données, rien n'est touché (erreur au journal système). Les anciennes entrées du journal d'audit gardent le nom `dist_chai`.
 - Clés de langue obsolètes supprimées (`Chai`, `Chais`, `ChaiRef`, `NomChai`).
-
-### Documentation
-- **EVOLUTIONS.md** : règle de versions (sous-versions 0.17.x), phases revues, #1 et #2 marqués livrés, #5 livré, nouveaux points #35 (régime douanier → mouvements de registre), #36 (mouvements/stock/inventaire par local, carte), #37 (droits dédiés), #38 (aide hook/menus), #39 (mouvements automatiques depuis les distillations) ; tableau d'avancement par rapport aux documents « evolutions 0.14.2 » et « état des lieux 0.14.0 ».
-- README, CLAUDE.md, INSTALL.md et le répertoire `doc/` alignés (sites et locaux, validation d'import, compteur Tuya, noms internes).
 
 ### Tests
 - `t_13_sites.php` : 69 contrôles dont la migration `dist_chai` → `dist_local` (renommage, références, double table refusée, table vide remplacée). Harnais : `free()` libère le curseur, traduction de `CHANGE` / `CONCAT`.
@@ -176,7 +172,7 @@
 
 ## [0.16.0] — 2026-11-05
 
-### Nouveautés — Sites et chais (RÈGLE 02, EVOLUTIONS #5)
+### Nouveautés — Sites et chais (RÈGLE 02)
 - **Sites d'exploitation** : liste, fiche, création, modification, suppression (`distsite_list.php`, `distsite_card.php`, classe `DistSite`). Champs : référence automatique `SITE-001`, nom, type (distillerie / vitivinicole / autre), registre rattaché, adresse, commune, arrondissement, canton, population, siège de la comptabilité matières, autorisation DGDDI (texte, numéro, date).
 - **Chais et locaux** : liste, fiche, création, modification, suppression (`distchai_list.php`, `distchai_card.php`, classe `DistChai`). Référence `CHAI-001`, site, type (principal / secondaire), adresse, superficie, capacité (L, hL, kg, m3), description. Ajout rapide d'un chai depuis la fiche du site.
 - **Liaison site → registre → mouvements** : la fiche du site renvoie à son registre et indique le nombre de mouvements de ce registre, avec lien vers la liste filtrée.
@@ -210,7 +206,7 @@
 ### Nouveautés
 - **Le compteur électrique devient un équipement Tuya comme les autres.** Le « Device ID » quitte l'onglet Intégration (qui ne garde que les identifiants du compte Tuya et un test de jeton) ; le compteur se gère dans **Équipements Tuya** (mesures, échelles, conversion, activation, « Tester / découvrir »).
 - **Migration non destructive** (automatique au premier chargement, tout ou rien, journalisée) : création de l'équipement « Compteur électrique » avec ses 3 mesures (Puissance W, Énergie kWh, Température ambiante °C, mêmes échelles qu'avant) et **copie de tous les relevés existants** vers les relevés d'équipements. Les anciennes colonnes de `dist_distil_line` et la constante du Device ID sont **conservées** (obsolètes, plus lues). Sans Device ID mais avec un historique : équipement créé inactif (réactivez-le pour revoir l'historique).
-- **Ligne REPRISE : relevé Tuya capturé** comme pour une ligne normale (fin de EVOLUTIONS #16).
+- **Ligne REPRISE : relevé Tuya capturé** comme pour une ligne normale (fin du chantier PDF / reprise).
 - Fiche distillation et PDF : plus de colonnes dédiées ; les relevés du compteur apparaissent comme les autres équipements (ordre : compteur d'abord).
 
 ### Modifications
@@ -225,7 +221,7 @@
 
 ## [0.14.5] — 2026-11-05
 
-### Nouveautés (EVOLUTIONS #1 et #2)
+### Nouveautés
 - **Import Excel — contrôle des valeurs hors norme** avant écriture, par production :
   - **Erreur (production refusée)** : valeur négative (poids, volume…), date de récolte illisible, TAV > 100 %.
   - **Avertissement (confirmation requise)** : TAV > 96 %, date de récolte future ou antérieure à 1990, date d'étape antérieure à la récolte, somme des coupes supérieure au volume de départ (suggéré ou saisi).
@@ -244,7 +240,7 @@
 - **Export PDF impossible dès qu'un alambic est renseigné** : `distillerie_get_dictionary_label('Alambic', id)` était appelé sans `$db` (PDF de la distillation, `distdistil_card.php`) ; PHP 8 lève `ArgumentCountError` (arguments manquants) → page blanche / HTTP 500. Même défaut dans l'onglet « Distillations » de la fiche production (`distprod_card.php`). Appels corrigés (`$db, 'Alambic', id, $conf->entity`). Test statique ajouté au harnais (arité).
 
 ### Nouveautés
-- **PDF de la distillation (EVOLUTIONS #16)** :
+- **PDF de la distillation** :
   - **Date de chaque ligne** : date enregistrée (`date_line`, 0.13.3) ou, à défaut, déduite du début de distillation (+1 jour à chaque passage de minuit), comme à l'écran.
   - **Relevés** : colonnes Puissance (W), Énergie (kWh), Température ambiante et **une colonne par mesure d'équipement Tuya** (en-tête : mesure + unité, équipement dessous). Une colonne n'apparaît que si au moins une ligne porte une valeur.
   - **Orientation automatique** : portrait pour le tableau de base ; paysage dès qu'il y a des relevés ; largeurs mises à l'échelle pour occuper exactement la largeur utile (police réduite si le tableau est très large).
@@ -261,7 +257,7 @@
 ## [0.14.3] — 2026-11-05
 
 ### Corrections
-- **Dette de langue** (EVOLUTIONS #19), vérifiée contre `Translate::load()` de Dolibarr 23.0.3 : en cas de clé en double, **la première définition gagne** (`if (empty($this->tab_translate[$key]))`). 17 clés en double supprimées en fr_FR et 29 en en_US : la valeur affichée reste celle qui l'était déjà, aucun changement visible, sauf le point suivant.
+- **Dette de langue**, vérifiée contre `Translate::load()` de Dolibarr 23.0.3 : en cas de clé en double, **la première définition gagne** (`if (empty($this->tab_translate[$key]))`). 17 clés en double supprimées en fr_FR et 29 en en_US : la valeur affichée reste celle qui l'était déjà, aucun changement visible, sauf le point suivant.
 - **« Distillation créée automatiquement »** : la génération automatique depuis une étape de production (`production_step.php`) affichait « Distillation créée » ; nouvelle clé `DistillationCreatedAuto`.
 - **Textes affichés en anglais sur l'interface française** : 14 clés ajoutées en fr_FR (`Steps`, `AddStep`, `SelectStepThenFillFields`, `LinkedDistillation`, `Thermostat`, `VolumeMl`, `CutType`, `AlambicAdmin`, `DistillerieSetup`, `DistillerieSetupPage`, `Settings`, `DistillerieProductions`, `DistillerieDistillations`) et 7 clés sans définition dans aucune langue (`Distillerie`, `TAV`, `Fruit`, `Step`, `Temperature`, `Duration`, `WorkflowCompleted`) ; 8 clés fr ajoutées en en_US (`CalculStocksMensuels`, `ImportDAE`…).
 - **Titre des onglets** de l'historique et de l'import : la clé `Module103258Name` (identifiant du gabarit ModuleBuilder, jamais définie) est remplacée par `ModuleDistillerieName`.
@@ -277,11 +273,7 @@
 
 ### Nouveautés
 - **Harnais de test livré dans le module** (`test/harness/`, `php test/harness/run.php`) : exécute le vrai code contre des doublures de Dolibarr et une base SQLite créée depuis les scripts `sql/llx_*.sql`. 9 fichiers : règles dures, langues, cohérence des versions, schéma et `$fields` des classes, audit transactionnel (création / modification / suppression / verrouillage / rollback si l'audit échoue / secrets masqués), reconnexion de secours (avec `$conf->db->pass` supprimé comme dans Dolibarr 23.0.3), hook des dictionnaires (base fermée), CSRF, aller-retour XLSX. Validé par trois mutations volontaires (ancien `withLiveDb`, champ de classe inexistant, jeton CSRF retiré) : toutes détectées. `test/harness/README.md` décrit usage et limites.
-- Le harnais signale (sans échec) de la **dette connue**, consignée en EVOLUTIONS #19 : clés de langue en double (fr 17, en 28) à valeurs divergentes, 8 clés utilisées présentes seulement en en_US (affichées en anglais en français), reliquats du gabarit ModuleBuilder, cURL natif (`TuyaClient`, `DistIntegration`), 13 `header('Location:')` hors dictionnaires.
-
-### Modifications
-- **EVOLUTIONS.md** réorganisé : ordre de priorité validé (A compléments PDF/import → B non-apurement → C inventaires annuels → D registres vitivinicoles → E exports Excel et tests → F propositions), dépendances, nouveaux points #19 à #34 (dette du harnais, intégration continue, propositions) et tableau de suivi.
-- **CLAUDE.md** : section « Harnais de test » remplace « harness non livrés ». Aucun changement de code du module (hors fichiers de test).
+- Le harnais signale (sans échec) de la **dette connue**, consignée : clés de langue en double (fr 17, en 28) à valeurs divergentes, 8 clés utilisées présentes seulement en en_US (affichées en anglais en français), reliquats du gabarit ModuleBuilder, cURL natif (`TuyaClient`, `DistIntegration`), 13 `header('Location:')` hors dictionnaires.
 
 ---
 
@@ -312,8 +304,6 @@
 ## [0.13.5] — 2026-11-05
 
 ### Documentation (aucun changement de code)
-- **CLAUDE.md** : sections regroupées et corrigées — suivi de distillation (date de ligne `date_line`, repli déduit), nouvelle section PDF de la distillation (mise en page, pied de page, piège TCPDF `setPage`/`SetAutoPageBreak`), table `dist_distil_line`, classe `DistImport`, SimpleXLSX en flux, liste exacte des onglets de configuration, **6 dictionnaires natifs déclarés (et non 7 : Alambic géré par page dédiée)**, bouton de test Tuya (reste dans Intégrations, retiré de la fiche), processus de livraison réel, harness de tests et ses limites, état réel du contrôle qualité.
-- **EVOLUTIONS.md** : #7 (import incrémental) retiré car livré, #2 mis à jour (volumétrie 0.13.1), nouveaux points #16 (compléments PDF / reprise), #17 (tables inutilisées), #18 (validation sur instance réelle).
 - **INSTALL.md** : réécrit — prérequis (extensions zip/xml), mise à jour sans désactivation via SQL Upgrade, réglages PHP de l'import (`upload_max_filesize`, `post_max_size`, `max_input_vars`) et limites du module, configuration Tuya, vérifications, liste complète des tables.
 
 ---
@@ -359,7 +349,7 @@ Dans la liste des lignes, la date (JJ/MM/AAAA) s'affiche en petit texte sous l'h
 
 ## [0.13.0] — 2026-11-02
 
-### Import Excel : mode UPDATE (EVOLUTIONS #7)
+### Import Excel : mode UPDATE
 Nouvelle option **Productions déjà existantes : Ignorer (défaut) / Mettre à jour** sur l'écran de prévisualisation ; en mode « Mettre à jour », seules les lignes cochées sont traitées. Une référence existante n'est jamais dupliquée.
 - **Production** : mise à jour seulement si elle est en brouillon (validée/clôturée : ignorée) ; date, fruit, poids brut, lieu modifiés uniquement s'ils sont renseignés dans le fichier.
 - **Étapes** : mises à jour par code d'étape (libellé, date, données) ; étape absente en base : créée ; étape absente du fichier : conservée.
@@ -452,7 +442,7 @@ Le verrou de la 0.12.11 devient utilisable.
 
 ## [0.12.11] — 2026-11-01
 
-### Verrouillage après validation (EVOLUTIONS #3)
+### Verrouillage après validation
 - **Distillation** : une distillation clôturée ou officielle est en lecture seule, y compris pour son **statut** : l'action `setstatus` pouvait jusqu'ici rouvrir une distillation clôturée, voire officielle (trou de sécurité corrigé). `setofficial` sur une distillation déjà officielle est ignoré.
 - **Garde au niveau des classes** (et plus seulement de l'écran) : `update()` / `delete()` de `DistProd`, `DistDistil`, `DistRegistry` et `update()` de `DistProdStep` refusent l'écriture si l'enregistrement est verrouillé **en base** (production et registre validés ou clôturés ; distillation clôturée ou officielle ; étape dont la production est validée ou clôturée). Message : « Enregistrement validé ou clôturé : modification et suppression verrouillées. »
 - **Écrans** : bouton « Modifier » de la production masqué si elle est validée/clôturée ; ajout d'étape refusé dans ce cas. Mouvements de registre : verrou validé inchangé (déjà au niveau classe).
@@ -463,8 +453,7 @@ Le verrou de la 0.12.11 devient utilisable.
 ### Hygiène du module (état des lieux §3)
 - **Descripteur** : prérequis alignés sur la prod — PHP **8.2** minimum (au lieu de 7.1), Dolibarr **21** minimum (au lieu de 19).
 - **Fichiers retirés de la distribution** : `class/distmouvement.class.php.patch`, `class/simplexlsx.class.php` (doublon jamais inclus de `includes/SimpleXLSX.php`), `img/object_myobject.png`, `SQL_VERIFICATION_REPORT.md`, `DEBUG_WORKFLOW.md`, `doc/VERIFICATION_COMPLETE.md`, `doc/VERIFICATION_v0.5.1.md`, `doc/VERSION_0.5.1.md`, `doc/CHANGELOG_v0.5.2.md`.
-- **Tests PHPUnit supprimés** : gabarit Selenium inutilisable (URL `dev.zenfusion.fr`, `admin/admin` en dur) et son doublon `functionnal/`. Reste `test/agent_controle.php` (analyse statique). EVOLUTIONS #15 reformulé.
-- **CLAUDE.md** : PHP 8.2+ / Dolibarr 21+ ; pattern de migration de colonnes réécrit (source de vérité : `lib/distillerie.lib.php`, plus de `addMissingXxxColumns()`). README : arborescence nettoyée.
+- **Tests PHPUnit supprimés** : gabarit Selenium inutilisable (URL `dev.zenfusion.fr`, `admin/admin` en dur) et son doublon `functionnal/`. Reste `test/agent_controle.php` (analyse statique).
 
 ## [0.12.9] — 2026-11-01
 
@@ -514,7 +503,7 @@ Jusqu'ici seuls les mouvements de registre et les corrections de relevés compte
 
 ### Non traité / à valider
 - Non testé sous Dolibarr réel : en particulier les transactions imbriquées (`begin`/`commit` des méthodes `*Common` à l'intérieur de l'audit) et l'écriture du journal d'une modification de configuration via FormSetup (fonction de fin de script). **À valider sur `gestion.barnecki-spirits.com`** : modifier un paramètre, créer une production, ajouter/supprimer une ligne, puis contrôler l'onglet Historique.
-- Verrouillage après validation (EVOLUTIONS #3) toujours à faire.
+- Verrouillage après validation toujours à faire.
 
 ---
 
@@ -529,7 +518,7 @@ Nouvelle page `admin/historique.php`, onglet **Historique** de la configuration 
 ### Vérification demandée : points 2.1 et 2.2 de l'état des lieux 0.12.0 — tous corrigés
 Contrôle sur le code de cette version (recherche dans les sources) et tests exécutés sur le vrai `TRACABILITE.xlsx` :
 - **2.1 Tuya faussé à l'import** : corrigé (0.12.1). Aucune référence Tuya exécutable dans `distimport.class.php` ni dans la page d'import ; `TuyaClient` n'est appelé que par `distdistil_card.php` (ajout de ligne) et par le bouton de test de `admin/integration.php`. Relevés laissés à NULL à l'import (modifiables à la main depuis la 0.12.4/0.12.5).
-- **2.2 Ré-import = doublons** : corrigé (0.12.2) — référence existante repérée à la prévisualisation et ignorée à l'import (test : 2 existantes ignorées, 41 créées). Mode UPDATE : toujours absent (EVOLUTIONS #7).
+- **2.2 Ré-import = doublons** : corrigé (0.12.2) — référence existante repérée à la prévisualisation et ignorée à l'import (test : 2 existantes ignorées, 41 créées). Mode UPDATE : toujours absent.
 - **2.2 `prod_ref` non renseigné** : corrigé (0.12.1).
 - **2.2 Sans `fk_alambic` / `volume_depart` / `tav_depart_pct`, statut « En cours »** : corrigé (0.12.2 pour les valeurs demandées à l'écran ; statut « Importée » en 0.12.1). Le volume de départ n'est pré-rempli que si l'Excel est un nombre pur, le TAV jamais.
 - **2.2 Aucun mouvement de registre** : corrigé (0.12.2), mouvements brouillon optionnels, règle cœur + queues par défaut depuis la 0.12.3.
@@ -544,7 +533,7 @@ Restent hors de ces deux points : import non transactionnel par production (att�
 
 ### Non traité / à valider
 - Page non testée sous Dolibarr réel. Pas encore d'onglet Historique sur les fiches distillation / production (la page de configuration est globale ; le filtre table + n° permet de retrouver une ligne).
-- Audit toujours limité aux mouvements et aux corrections de relevés (EVOLUTIONS #3).
+- Audit toujours limité aux mouvements et aux corrections de relevés.
 
 ---
 
@@ -564,7 +553,7 @@ Chaque correction faite avec le bouton « Modifier » d'une ligne de distillatio
 - `php -l` : 0 erreur. Agent de contrôle (exécuté) : 0 erreur critique, 6 avertissements (inchangés), 9 suggestions, 115 contrôles réussis, 95,0 %.
 
 ### Non traité / à valider
-- Pas de page de consultation du journal d'audit (EVOLUTIONS #3) : les entrées sont en base (`dist_audit_log`, `DistAudit::getHistory('dist_distil_line', id)`), pas encore affichées dans l'interface.
+- Pas de page de consultation du journal d'audit : les entrées sont en base (`dist_audit_log`, `DistAudit::getHistory('dist_distil_line', id)`), pas encore affichées dans l'interface.
 - Interface non testée sous Dolibarr réel.
 
 ---
@@ -592,7 +581,7 @@ Sur la fiche distillation, chaque ligne a un bouton **Modifier** : les trois cel
 ### Non traité / à valider
 - Interface non testée sous Dolibarr réel (fiche production, bouton Modifier).
 - `quantite_totale` reçoit le « Poids Brut » de l'Excel (poids) alors que `distprod_dashboard.php` l'affiche avec l'unité « L » : unité à clarifier.
-- Les modifications de relevés ne sont pas tracées dans `DistAudit` (comme les autres lignes de distillation, EVOLUTIONS #3).
+- Les modifications de relevés ne sont pas tracées dans `DistAudit` (comme les autres lignes de distillation).
 
 ---
 
@@ -615,7 +604,7 @@ Sur la fiche distillation, chaque ligne a un bouton **Modifier** : les trois cel
 ### Non traité / à valider
 - Pas de test sous Dolibarr réel : la page (bandeau, confirmation, historique) est à valider sur `gestion.barnecki-spirits.com`. Le test de suppression doit se faire avec un import volontairement interrompu (ex. en coupant le script) sur une base de test.
 - L'import reste non transactionnel **par production** (le suivi permet désormais de nettoyer proprement après coup).
-- Mode UPDATE (EVOLUTIONS #7), validation des valeurs hors norme (#1), `volume_ml` INTEGER : inchangés.
+- Mode UPDATE, validation des valeurs hors norme (#1), `volume_ml` INTEGER : inchangés.
 - Constat non corrigé : `DistProd` ne déclare pas certaines colonnes (`fk_fruit`, `quantite_totale`, `lieu_recolte`) : voir question posée à l'exploitant.
 
 ---
@@ -641,7 +630,7 @@ L'import passe en deux temps : **upload → prévisualisation (aucune écriture 
 
 ### Non traité (reste à faire)
 - Import toujours **non transactionnel** (un import interrompu laisse des productions partielles).
-- Mode UPDATE des productions existantes (EVOLUTIONS #7) ; validation des valeurs hors norme (EVOLUTIONS #1).
+- Mode UPDATE des productions existantes ; validation des valeurs hors norme.
 - Bloc dupliqué « FERMENTATION/MACERATION DEBUT » du fichier réel (probable erreur de libellé pour FIN) : toujours fusionné dans DEBUT.
 - `volume_ml` reste `INTEGER` (arrondi explicite à l'import).
 - Interface écran non testée sous Dolibarr : à valider sur `gestion.barnecki-spirits.com`.
@@ -681,17 +670,17 @@ Premier passage du code d'import sur le fichier réel (jusqu'ici deviné). Il a 
 
 ## [0.12.0] — 2026-09-19
 
-### ADD : génération automatique des Distillations depuis l'import Excel (EVOLUTIONS.md #1)
+### ADD : génération automatique des Distillations depuis l'import Excel
 
 Lors de l'import Excel, si l'étape DISTILLATION d'une production contient au moins une coupe (Tête/Cœur/Queue) avec un volume renseigné, une `DistDistil` et ses `DistDistilLine` sont désormais générées automatiquement — plus besoin de ressaisir manuellement les distillations historiques après un import en masse.
 
 - **ADD : `DistImport::generateDistilFromImport()`** — appelée automatiquement après création réussie de l'étape DISTILLATION. Ne crée la distillation que si au moins une coupe a un volume > 0 (les 3 coupes sont indépendantes, pas besoin des 3) ; sinon retourne silencieusement sans erreur (étape DISTILLATION vide = cas normal).
-  - Statut laissé à `STATUS_RUNNING` (pas `STATUS_CLOSED`) : la distillation générée reste éditable via la fiche après import, tant que la validation/prévisualisation (EVOLUTIONS.md #2/#3, non encore implémentées) ne fiabilise pas les données en amont.
+  - Statut laissé à `STATUS_RUNNING` (pas `STATUS_CLOSED`) : la distillation générée reste éditable via la fiche après import, tant que la validation/prévisualisation (non encore implémentées) ne fiabilise pas les données en amont.
   - Relevé Tuya (compteur électrique atelier) câblé sur ce nouveau canal de création, avec le même contrat non bloquant que le formulaire manuel (`distdistil_card.php::addline`) — cf. `tuya-integration-distillerie.md` §4.1 et `ChangeLog.md` v0.10.0. C'était le point explicitement laissé en TODO à ce sujet.
   - Étape DISTILLATION liée à la distillation générée via `fk_distil` (colonne déjà présente sur `llx_dist_prod_step`, jusqu'ici jamais renseignée par l'import).
 - **ADD : `DistImport::normalizeChampKey()` / `findChampValue()` / `findChampValueAny()`** — correspondance floue (accents/casse/ponctuation ignorés, plusieurs libellés candidats essayés) pour retrouver les colonnes Tête/Cœur/Queue dans l'Excel importé. **Nécessaire** car les libellés exacts des colonnes DISTILLATION ne sont documentés dans `doc/IMPORT_PRODUCTIONS.md` que de façon informelle ("Tête : Volume (ml), % alcool moyen"), sans fichier `TRACABILITE.xlsx` réel disponible pour valider un nom de colonne exact. Testé avec plusieurs variantes plausibles ("Tête (ml)", "Volume Tête (ml)", "Tête : Volume (ml)"...) — toutes reconnues. **Si l'import réel ne détecte aucune distillation malgré des données présentes**, voir la procédure de diagnostic ajoutée dans `doc/IMPORT_PRODUCTIONS.md`.
 - **`class/distimport.class.php::importProductionSteps()`** — signature de retour changée de `int` (nombre d'étapes) vers un tableau (`steps`, `distillations`, `distil_lines`, `warnings`), pour remonter le résultat de la génération automatique jusqu'à `admin/import_productions.php` (déjà câblé pour afficher `details`/`warnings`, aucune modification nécessaire côté page).
-- **Doc** : `doc/IMPORT_PRODUCTIONS.md` mis à jour (section "Génération Distillations" sortie de "Phase 2" projetée, note sur la correspondance floue et la procédure de diagnostic en cas de non-détection). `EVOLUTIONS.md` : item #1 retiré (implémenté), renumérotation de la liste (y compris un trou de numérotation pré-existant 10→12 corrigé au passage).
+- **Doc** : `doc/IMPORT_PRODUCTIONS.md` mis à jour (section "Génération Distillations" sortie de "Phase 2" projetée, note sur la correspondance floue et la procédure de diagnostic en cas de non-détection).
 
 ### Vérifié
 - Test unitaire isolé de `normalizeChampKey`/`findChampValueAny` sur plusieurs variantes de libellés plausibles (avec/sans accents, ordre des mots différent) : toutes correctement reconnues. Étape DISTILLATION vide → aucune génération, aucune erreur. Une seule coupe renseignée sur 3 → distillation créée avec uniquement cette ligne.
@@ -789,7 +778,7 @@ Câblage de la classe `TuyaClient` (fournie, cf. `tuya-integration-distillerie.m
 
 ### Écarts assumés entre la spécification fournie et l'implémentation
 - La table `dist_distil_line` n'utilise pas le mécanisme d'extrafields Dolibarr (insertion en SQL brut) : les 3 mesures Tuya sont stockées comme **colonnes réelles**, pas comme `array_options`, pour rester cohérent avec l'existant (`temp_ala_c`, `volume_ml`, `tav_pct`...).
-- Sur les 3 canaux de création de ligne mentionnés dans la spec (formulaire manuel, import Excel, API REST), **seul le formulaire manuel existe réellement dans le code actuel** — l'import Excel (`class/distimport.class.php`) ne crée aucune `dist_distil_line` à ce jour (roadmap `EVOLUTIONS.md` #1), et il n'existe aucune classe API REST dans ce module. L'appel Tuya n'est donc câblé que sur ce canal ; à répliquer au même endroit le jour où l'import Excel génère des distillations.
+- Sur les 3 canaux de création de ligne mentionnés dans la spec (formulaire manuel, import Excel, API REST), **seul le formulaire manuel existe réellement dans le code actuel** — l'import Excel (`class/distimport.class.php`) ne crée aucune `dist_distil_line` à ce jour, et il n'existe aucune classe API REST dans ce module. L'appel Tuya n'est donc câblé que sur ce canal ; à répliquer au même endroit le jour où l'import Excel génère des distillations.
 - `voltage`, `current`, `fac`, `fre` sont disponibles dans le retour de `getMeterValues()` mais non persistés, conformément à la demande initiale (§4.6 de la spec).
 - Décision actée : stockage du relevé cumulé brut (`energy`), pas de calcul de delta à l'écriture (§4.5 de la spec).
 
@@ -836,7 +825,7 @@ L'agent (`test/agent_controle.php`) n'avait pas été relancé depuis la livrais
 Premier audit de sécurité formel du module, exécuté selon `references/security_audit_process.md`. 3 points confirmés et corrigés :
 
 - **SEC : `admin/integration.php`** — les actions `import_dae`, `export_dti` et `export_fec` affichaient le token CSRF dans le formulaire mais ne le vérifiaient jamais côté serveur, contrairement au pattern déjà établi dans `distdistil_card.php` (`GETPOST('token','alpha') == $_SESSION['newtoken']`). Ajout de la vérification explicite avant chacune des 3 actions, avec `accessforbidden('InvalidToken')` en cas d'échec.
-- **SEC : `class/distintegration.class.php::syncSites()`** — injection SQL confirmée : `$site_source`/`$site_dest` concaténés directement dans une requête `INSERT INTO site_...` sans passer par `$db->escape()`. Méthode actuellement non appelée (code mort en attente de la roadmap Sites/Chais, `EVOLUTIONS.md` #6), corrigée par prudence avant qu'une future page ne la branche à une entrée utilisateur : validation stricte par expression régulière (`^[a-zA-Z0-9_]+$`) en plus de `$db->escape()`.
+- **SEC : `class/distintegration.class.php::syncSites()`** — injection SQL confirmée : `$site_source`/`$site_dest` concaténés directement dans une requête `INSERT INTO site_...` sans passer par `$db->escape()`. Méthode actuellement non appelée (code mort en attente de la roadmap Sites/Chais), corrigée par prudence avant qu'une future page ne la branche à une entrée utilisateur : validation stricte par expression régulière (`^[a-zA-Z0-9_]+$`) en plus de `$db->escape()`.
 - **SEC : `check_tables.php`** — script de diagnostic à la racine du module, sans inclusion de `main.inc.php` et donc sans authentification Dolibarr. Restreint à une exécution CLI uniquement (`php_sapi_name() !== 'cli'` → HTTP 403), pour éviter toute exécution directe en HTTP par un visiteur non connecté s'il reste dans un ZIP livré en production.
 
 ### Vérifié sans correction nécessaire
@@ -867,7 +856,6 @@ Premier audit de sécurité formel du module, exécuté selon `references/securi
 
 ### Vérifié
 - Agent de contrôle : **100%** — 56 contrôles passés, 0 erreur, 0 avertissement, 9 suggestions (inchangées)
-- `EVOLUTIONS.md` : point "Widget calendrier Date_mise_service" retiré (résolu)
 
 ---
 
@@ -1057,7 +1045,6 @@ Les lignes déjà insérées par erreur lors des tests précédents (ex. Alambic
   - Cohérence fichier VERSION ↔ descripteur, module activé, numero = 250004
   - Environnement : PHP, ZipArchive (import Excel), répertoire temp
   - Score global avec badges OK/!/KO par contrôle
-- Registre des IDs de droits (25000401-25000499) documenté dans `CLAUDE.md` avec plages libres
 
 ### Modifié
 - **`admin/setup.php` nettoyé** : les 13 paramètres d'exemple ModuleBuilder (MYPARAM1-13) remplacés par 6 paramètres métier réels via FormSetup :
@@ -1099,7 +1086,7 @@ Après installation : **désactiver puis réactiver le module**, puis **réattri
 ## [0.8.2] — 2026-05-18
 
 ### Ajouté
-- **Agent de contrôle qualité autonome** (`test/agent_controle.php`) : 12 familles de contrôles statiques basés sur le skill CLAUDE_template_module_dolibarr_V2 (descripteur, bootstrap, sécurité, pagination, TCPDF, inclusions, redirections, langues, classes, SQL, lint PHP). Score de conformité affiché. Utilisable en CLI : `php test/agent_controle.php`
+- **Agent de contrôle qualité autonome** (`test/agent_controle.php`) : 12 familles de contrôles statiques conformes aux bonnes pratiques de développement des modules Dolibarr (descripteur, bootstrap, sécurité, pagination, TCPDF, inclusions, redirections, langues, classes, SQL, lint PHP). Score de conformité affiché. Utilisable en CLI : `php test/agent_controle.php`
 - Fichier `VERSION` à la racine (source de vérité unique de la version)
 - Balises `/* BEGIN/END MODULEBUILDER PERMISSIONS */` et `/* BEGIN/END MODULEBUILDER DICTIONARIES */` dans le descripteur (conformité ModuleBuilder)
 
@@ -1117,9 +1104,6 @@ Après installation : **désactiver puis réactiver le module**, puis **réattri
 
 ## [0.8.1] — 2026-05-18
 
-### Ajouté
-- `EVOLUTIONS.md` : fichier de suivi de toutes les évolutions évoquées non encore implémentées (17 évolutions listées, classées par priorité)
-
 ---
 
 
@@ -1128,7 +1112,6 @@ Après installation : **désactiver puis réactiver le module**, puis **réattri
 ### Modifié
 - Repackaging officiel — numérotation de version alignée sur le cycle de livraison
 - `README.md` : version courante mise à jour → 0.8.0
-- `CLAUDE.md` : version courante mise à jour → 0.8.0
 - `ChangeLog.md` : entrée 0.8.0 ajoutée
 
 ---
@@ -1142,7 +1125,6 @@ Après installation : **désactiver puis réactiver le module**, puis **réattri
 - Requêtes SQL `CREATE TABLE` et `INSERT IGNORE` pour `llx_dist_dict_typeregistre` dans la fonction `init()` de `modDistillerie.class.php` (création automatique à l'activation)
 - Table `llx_dist_dict_typeregistre` ajoutée dans la fonction `remove()` (suppression à la désactivation)
 - Fichier `README.md` entièrement réécrit (structure, tables, permissions, menus, import, librairies)
-- Fichier `CLAUDE.md` créé (guidance Claude Code : conventions, architecture, pièges courants)
 - Fichier `ChangeLog.md` mis à jour à chaque version
 
 ---
