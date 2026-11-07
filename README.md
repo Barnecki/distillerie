@@ -13,14 +13,15 @@ Module externe Dolibarr (v21+, PHP 8.2+) dédié à la gestion de la production 
   - FERMENTATION/MACÉRATION DEBUT, FERMENTATION/MACÉRATION FIN
   - DISTILLATION, DECHETS, RECYCLAGE, PREPARATION
 - Étapes ordonnées par rang (10, 20, 30…) selon le processus de production
-- Import en masse depuis fichier Excel (format Traçabilité)
+- Import en masse depuis fichier Excel (format Traçabilité) : prévisualisation, étapes détectées, **contrôle des valeurs hors norme** (erreurs / avertissements, « Importer quand même »), modes Ignorer / Mettre à jour
 - Pagination de la liste des productions
 
 ### 🔥 Distillations
 - Gestion des distillations liées aux productions
 - Lignes de suivi (Tête, Cœur, Queue : volumes ml et TAV %)
-- Capture automatique du compteur électrique atelier (Tuya Cloud : puissance, énergie, température) à chaque ligne — voir `admin/integration.php`
+- Capture automatique du compteur électrique atelier (Tuya Cloud : puissance, énergie, température) à chaque ligne et à la reprise : le compteur est un équipement Tuya comme les autres — voir `admin/tuya_devices.php` (identifiants du compte dans `admin/integration.php`)
 - Dashboard distillation avec graphiques (Chart.js)
+- **PDF du journal de distillation** : date par ligne, colonnes de relevés Tuya, paysage automatique, en-tête répété
 
 ### 📋 Registres
 - Gestion des registres douaniers officiels
@@ -28,6 +29,22 @@ Module externe Dolibarr (v21+, PHP 8.2+) dédié à la gestion de la production 
 - Informations réglementaires (RÈGLES 01, 05, 09, 10 DTI+)
 - Type de registre lié au dictionnaire `dist_dict_typeregistre`
 - Mouvements associés aux registres
+
+### 🏢 Sites et Locaux
+- Rubrique de menu « **Sites et Locaux** » (au niveau de « Registres ») : sites d'exploitation rattachés à un registre, avec commune, siège de la comptabilité matières, autorisation DGDDI
+- **Locaux** d'un site : chai, atelier, entrepôt ou autre ; rôle principal / secondaire ; superficie et capacité
+- **Entrepôt** : régime douanier **sous douane** (accises non acquittées) ou **hors douane** (accises acquittées) ; lien facultatif vers un **entrepôt Dolibarr** (module Stock)
+- Écritures auditées ; suppression d'un site refusée tant qu'il contient des locaux
+- **Mouvements rattachés aux locaux** (0.18.0) : local d'origine / de destination, régime douanier figé à la validation, contrôle de cohérence (avertissements, mise à la consommation signalée)
+- **Stock par local** (0.19.0) : stock comptable en litres et en LAP à partir des mouvements validés rattachés, situation à une date, taux d'occupation vs capacité
+- **Inventaires par local** (0.19.1) : arrêté annuel et inventaires ponctuels, comptage physique, écart avec le stock comptable, justification obligatoire, validation qui fige, mouvements de régularisation en brouillon, PDF
+- **Stock Dolibarr** (0.19.1) : comparaison en lecture seule avec l'entrepôt Dolibarr lié (estimation en litres)
+- **Alertes de capacité par e-mail** (0.19.1) : une alerte par franchissement du seuil, tâche planifiée
+- **Détail par produit** (0.20.0) : stock et inventaire ventilés par catégorie fiscale et nature de produit
+- **Régime douanier** (0.22.0) : règles bloquantes configurables, mise à la consommation dans la déclaration mensuelle
+- **Non-apurement** (0.21.0) : documents d'accompagnement DAE/DAA/DSA, apurement, relevé mensuel et PDF
+- **Rapprochement Dolibarr** (0.20.0) : propositions de mouvements de registre depuis les mouvements de stock Dolibarr (brouillons à relire), correspondance produits, transferts internes, anti-doublon
+- *À venir* : blocages issus du régime douanier, détail par produit, rapprochement actif avec le stock Dolibarr (voir EVOLUTIONS.md #35, #36, #31)
 
 ### 📊 Dashboards
 - Dashboard global (productions + distillations + registres)
@@ -246,4 +263,4 @@ Format attendu : fichier `.xlsx` avec :
 
 Voir [ChangeLog.md](ChangeLog.md) pour l'historique complet.
 
-**Version actuelle : 0.13.5**
+**Version actuelle : 0.22.0**

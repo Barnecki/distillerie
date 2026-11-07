@@ -2,6 +2,299 @@
 
 ---
 
+## [0.22.0] — 2026-11-06
+
+### Ajouté (phase B : régime douanier des locaux → registre)
+- **Règles de régime bloquantes, à la demande** : les six contrôles du régime douanier (production sans destination, sortie sans origine, production hors douane, hors douane → sous douane, DAE depuis un local hors douane, DSA depuis un local sous douane) restent de **simples avertissements par défaut**. Configuration > Automatisations > « Règles du régime douanier rendues bloquantes » : cochez celles que la douane ou le comptable a confirmées ; le mouvement ne peut alors plus être enregistré **ni validé** tant qu'elles ne sont pas respectées (un brouillon existant reste en brouillon). La mise à la consommation reste une information, jamais bloquante.
+- **Mise à la consommation dans la déclaration mensuelle** : bloc dédié (page de génération et PDF) = mouvements **validés** d'un local sous douane vers un local hors douane (régimes figés sur le mouvement, donc l'historique ne bouge pas si un local change de régime), cumul par produit en litres et alcool pur, corrections négatives comprises ; les brouillons concernés et les unités inconnues sont signalés. La liquidation des accises n'est **pas** calculée (taux à confirmer).
+
+### Non retenu (voir EVOLUTIONS #35)
+- **Local par défaut à l'import Excel** : l'import Excel crée des productions, pas des mouvements de registre ; sans objet. Le rattachement automatique relève des mouvements issus des distillations (#39).
+- **Régime dans les exports DRM / DTI+** : aucune règle confirmée ; non ajouté pour ne pas altérer un format officiel.
+
+### Tests
+- `t_21_regime_blocage_conso.php` (26 contrôles) ; mutations vérifiées (blocage, liste de règles, configuration, brouillons, filtrage du régime, intégration à la déclaration). Harnais : utilisateur de test avec `getFullName()`.
+- **À valider sur ton instance** : (1) ouvrir Configuration > Automatisations : liste des six règles, toutes décochées ; (2) cocher « Aucun local de destination », tenter de créer une production sans local : refusée avec le message ; décocher : acceptée ; (3) faire une sortie d'un local sous douane vers un local hors douane, la valider, générer la déclaration du mois : le bloc « Mise à la consommation » apparaît avec les litres et l'alcool pur ; (4) exporter le PDF de la déclaration : la ligne de mise à la consommation y figure (le rendu PDF n'est pas testable ici) ; (5) laisser un brouillon concerné : l'avertissement s'affiche.
+
+---
+
+## [0.21.1] — 2026-11-06
+
+### Corrections
+- **Import DAE XML (Configuration > Intégrations)** : les documents étaient toujours enregistrés dans le **registre 1** (valeur en dur). L'import demande maintenant le **registre cible** (liste déroulante) et refuse un registre inconnu. Chaque document passe par les mêmes contrôles que la saisie manuelle : numéro et date valides (JJ/MM/AAAA converti), **doublons ignorés**, quantité à virgule décimale acceptée, source « import », audit ; les documents ignorés sont comptés et expliqués dans le message. Lecture XML sans réseau ni entités externes. Avant : l'insertion utilisait `NOW()` (MySQL) et un identifiant de registre figé.
+
+### Tests
+- `t_20_non_apurement.php` : 82 contrôles (11 pour l'import : registre choisi, doublons, dates, virgule, registre inconnu, XML illisible, entité externe) ; mutation vérifiée (registre figé à 1).
+- **À valider sur ton instance** : importer un fichier DAE XML en choisissant un registre autre que le premier, vérifier que les documents apparaissent dans « Documents d'accompagnement » de ce registre, et qu'un second import du même fichier n'ajoute rien.
+
+### À valider avec la douane (notés dans EVOLUTIONS #6)
+- Règle d'apurement : délai exact, documents concernés, modèle officiel du relevé de non-apurement.
+- Entrées : une entrée avec DAE ne crée pas de document à apurer (document reçu, pas émis) ; à confirmer.
+- Le délai de 30 jours avant « en retard » est validé comme repère de suivi interne.
+
+---
+
+## [0.21.0] — 2026-11-06
+
+### Ajouté
+- **Relevé de non-apurement mensuel (RÈGLE 07)** : nouveau suivi des **documents d'accompagnement DAE / DAA / DSA** (menu Registres > « Documents d'accompagnement », classe `DistDocAccomp`). Les **sorties validées** portant un type et un numéro de document sont **rattachées automatiquement** (un document par numéro, quantités cumulées en litres et en alcool pur, date du document ou du mouvement) ; on peut aussi ajouter un document à la main.
+- **Apurement** : saisie de la date d'accusé de réception (avec commentaire), annulation possible en cas d'erreur ; tout est audité.
+- **Relevé à la fin du mois** : documents émis jusqu'à la fin du mois et **non apurés à cette date** (un document apuré le mois suivant figure bien au relevé du mois précédent), avec ancienneté, **signalement des retards** au-delà d'un délai configurable (30 jours par défaut, Configuration > Automatisations — repère interne à confirmer avec la douane), totaux par type, **PDF** avec bloc de signatures.
+- La **déclaration mensuelle** utilise désormais ce relevé : l'indicateur « apurement OK » est faux tant qu'un document émis reste non apuré à la fin du mois (avant : le calcul portait sur une table jamais alimentée).
+
+### Schéma
+- `dist_document_accompagnement` reçoit `source` (mouvement | manuel) et `quantite_alc_pur`, ajoutées **en fin de table** (migration automatique, documents existants conservés).
+
+### Tests
+- `t_20_non_apurement.php` (71 contrôles, dont le rendu PDF) ; mutations vérifiées (apurement postérieur à la fin du mois, brouillons et entrées, doublons, seuil de retard, date d'apurement, état « non émis », indicateur de déclaration).
+- **À valider sur ton instance** : (1) réactiver le module (menu Documents d'accompagnement) ; (2) valider une sortie avec type DAE et numéro : « Rattacher les sorties validées » crée le document (ouvrir le relevé le fait aussi) ; (3) apurer à une date, vérifier qu'il sort du relevé du mois concerné mais reste dans celui d'un mois précédent s'il a été apuré après sa fin ; (4) régler le délai de retard avec ta douane (la règle exacte d'apurement et de délai n'est pas vérifiée ici) ; (5) générer le relevé PDF ; (6) ouvrir « Déclarations mensuelles > Relevé de non-apurement » et contrôler le tableau enrichi (litres, ancienneté, retard).
+
+---
+
+## [0.20.0] — 2026-11-06
+
+### Ajouté
+- **Détail par produit dans un local** : le stock par local se ventile par **catégorie fiscale** et **nature de produit** (case « Détail par produit » de la page Stock par local) ; la somme du détail est égale au stock du local ; les mouvements sans catégorie apparaissent en « Non ventilé ».
+- **Inventaires ventilés** : une ligne par local **et par produit** ayant du stock (un local vide reçoit une ligne « Non ventilé »), comptage et écart par produit, PDF avec colonne Produit, **ajout d'une ligne** sur un brouillon (produit trouvé dans un local qui n'en portait pas) ; les **mouvements de régularisation** reprennent la catégorie fiscale et la nature du produit.
+- **Rapprochement actif avec les mouvements de stock Dolibarr** (menu Sites et Locaux > « Rapprochement stock Dolibarr ») : les mouvements du module Stock des entrepôts liés à un local sont **lus** (jamais modifiés) puis convertis en **mouvements de registre proposés** (entrée, sortie, ou **transfert interne** entre deux locaux quand Dolibarr a enregistré les deux côtés avec le même code) ; litres = quantité × volume du produit, alcool pur = litres × TAV. L'utilisateur coche les propositions : elles deviennent des **mouvements BROUILLONS** qu'il relit puis valide. Les propositions impossibles (entrepôt sans local, produit sans volume, unité inconnue, deux registres) sont signalées et jamais créées ; celles à compléter (catégorie ou TAV absents) sont décochées.
+- **Anti-doublon** : chaque mouvement Dolibarr rapproché est lié (`dist_stock_link`) au mouvement de registre créé ; si ce brouillon est supprimé, la proposition revient. Les mouvements sans rapport avec le registre (cartons, matières sèches) peuvent être **écartés**, puis **remis** dans les propositions.
+- **Correspondance produits** (Configuration > onglet « Correspondance produits ») : catégorie fiscale, nature et TAV de chaque produit Dolibarr, utilisés pour la ventilation et le calcul de l'alcool pur.
+
+### Schéma
+- Nouvelles tables `dist_product_map` et `dist_stock_link` ; `dist_inventaire_line` reçoit `fk_categorie_fiscale` et `nature_produit` et sa clé unique devient (inventaire, local, catégorie, nature) — migration automatique et non destructive des inventaires existants (lignes conservées, « non ventilées »).
+
+### Tests
+- `t_18_detail_produit.php` (41 contrôles) et `t_19_rapprochement.php` (44 contrôles) ; mutations vérifiées (écart de quantité entre les deux côtés d'un transfert, même entrepôt, TAV/100, lien périmé, catégorie non reprise en régularisation, ligne vide, clé unique). Harnais : traduction de `ALTER TABLE … DROP INDEX / ADD UNIQUE KEY`.
+- **À valider sur ton instance** : (1) réactiver le module (menu Rapprochement, onglet Correspondance produits) ; (2) renseigner catégorie, nature et TAV de tes produits et le **volume unitaire** sur les fiches produit ; (3) lier tes locaux à leurs entrepôts Dolibarr puis ouvrir le rapprochement : vérifier les litres et l'alcool pur proposés sur quelques mouvements connus, créer les brouillons, les relire et les valider (le stock du local évolue) ; (4) faire un transfert entre deux entrepôts dans Dolibarr : une seule proposition « Transfert interne » (la nature enregistrée est « entrée » avec origine et destination : à confirmer pour ta déclaration) ; (5) supprimer un brouillon créé : la proposition réapparaît ; (6) créer un inventaire : une ligne par produit, ajouter une ligne, compter, valider, régulariser ; (7) ouvrir un inventaire 0.19.1 existant après mise à jour : ses lignes apparaissent « Non ventilé » ; (8) vérifier la migration de l'index (SQL Upgrade) si la base est MySQL.
+
+---
+
+## [0.19.1] — 2026-11-06
+
+### Ajouté
+- **Inventaires physiques par local** (menu Sites et Locaux > Inventaires, `DistInventaire`) : une ligne par local du registre avec le **stock théorique figé** à la date d'inventaire, le **comptage physique** (volume + TAV → alcool pur) et l'**écart** en litres, en alcool pur et en %. Types **annuel** (un seul par registre et par année) et **ponctuel**.
+- **Arrêté annuel (RÈGLE 09)** : date limite calculée (registre viticole : 10 septembre ; sinon le 10 du deuxième mois après la clôture de l'exercice), échéance dépassée signalée ; le bouton « Générer » des Automatisations crée désormais un inventaire complet (et non plus un en-tête vide) 2 mois avant l'échéance, sans doublon.
+- **Justification obligatoire** de l'écart au-delà d'une **tolérance** configurable (1 % par défaut) avec suggestion (évaporation, fuite, saisies) ; la **validation fige** l'inventaire (comptages et suppression refusés ensuite).
+- **Régularisation** : depuis un inventaire validé, génération de **mouvements en brouillon** (sortie pour un déficit, entrée pour un excédent, rattachés au local) à relire et valider ; sans doublon.
+- **PDF de l'inventaire** (tableau par local, justifications, totaux, bloc de signatures).
+- **Liaison avec le stock Dolibarr** (lecture seule) : pour un local lié à un entrepôt, la page « Stock par local » affiche le stock Dolibarr **estimé en litres** (quantité × volume de la fiche produit) et l'écart avec le registre ; produits sans volume et unités non convertibles signalés.
+- **Alertes de capacité par e-mail** : un e-mail quand un local dépasse le seuil (100 % par défaut), **une seule fois par franchissement** (état mémorisé, réarmé au retour sous le seuil, retenté si l'envoi échoue). Tâche planifiée « Distillerie : alertes de capacité des locaux » (créée **désactivée**) et bouton « Contrôler maintenant ». Seuil, destinataires et tolérance d'inventaire dans Configuration > Automatisations.
+
+### Schéma
+- Nouvelles tables `dist_inventaire_line` et `dist_local_alert`, colonne `dist_inventaire.type_inventaire` (créées automatiquement à l'ouverture des écrans ou par SQL Upgrade).
+
+### Tests
+- `t_16_inventaire.php` (60 contrôles, dont le rendu PDF réel) et `t_17_alertes_dolibarr.php` (31 contrôles) ; mutations vérifiées (alerte renvoyée à chaque passage, état non mémorisé, validation sans contrôle). Harnais : `trans()` remplace les `%s` comme Dolibarr. Défaut trouvé par les tests : propriétés dynamiques (PHP 8.2) dans `DistInventaire::fetch()`.
+- **À valider sur ton instance** : (1) réactiver le module (menu Inventaires, tâche planifiée) ; (2) créer un inventaire annuel sur ton registre, compter, vérifier l'écart, la justification exigée, la validation, le PDF ; (3) générer la régularisation et valider le mouvement : le stock du local s'aligne sur le physique ; (4) lier un local à un entrepôt Dolibarr et vérifier l'estimation en litres (le volume doit être renseigné sur les fiches produit ; l'unité de volume est convertie pour m3, L, mL — à confirmer sur ta version) ; (5) renseigner un destinataire et un seuil, « Contrôler maintenant » avec un local dépassant sa capacité : un e-mail part (l'envoi dépend de la configuration e-mail de Dolibarr), un second clic n'en renvoie pas ; (6) activer la tâche planifiée si tu veux l'envoi quotidien.
+
+---
+
+## [0.19.0] — 2026-11-05
+
+### Ajouté
+- **Stock par local** (menu Sites et Locaux > « Stock par local », classe `DistStock`) : stock comptable de chaque local calculé à partir des mouvements **validés** rattachés (un mouvement déplace sa quantité du local d'origine vers le local de destination, corrections comprises), en litres et en litres d'alcool pur, avec entrées, sorties, **situation à une date** et filtre par registre.
+- **Taux d'occupation** par rapport à la capacité de stockage du local (L, hL, m3 ; le kg n'est pas comparable à un volume), avec alerte en rouge au-delà de 100 %.
+- Brouillons indiqués à part (hors stock comptable) ; **stock négatif signalé** ; mouvements validés sans local et mouvements d'unité inconnue signalés plutôt que perdus.
+- Stock actuel affiché sur la fiche de chaque local.
+
+### Tests
+- Nouveau `t_15_stock.php` (26 contrôles) : conversions, règle origine → destination, corrections, brouillons, non rattachés, situation à une date, filtre par registre. Mutations vérifiées (signe des sorties, prise en compte des brouillons).
+- **À valider sur ton instance** : réactiver le module pour voir le menu ; créer une production avec un local de destination, la valider : le stock du local augmente ; une sortie validée vers l'extérieur le diminue ; un transfert entre deux locaux déplace la quantité ; la date « Situation au » exclut les mouvements postérieurs ; avec une capacité renseignée sur un local, le taux d'occupation s'affiche. Rappel : tes mouvements validés avant la 0.18.0 apparaissent dans « non rattachés » (ils n'ont pas de local) ; pour démarrer un stock par local, saisis un mouvement d'entrée d'ouverture par local.
+
+---
+
+## [0.18.0] — 2026-11-05
+
+### Ajouté
+- **Mouvements de registre rattachés aux locaux** : local d'origine et local de destination (facultatifs) à la création d'un mouvement ; sur le brouillon, section « Locaux du mouvement » pour les renseigner ou les corriger (journalisé) ; colonnes Origine / Destination et filtre par local dans la liste ; nombre de mouvements rattachés et lien vers la liste filtrée sur la fiche du local.
+- **Régime douanier figé** : le régime (sous douane / hors douane) du local est copié sur le mouvement à la saisie puis relu et figé à la validation ; modifier le local ensuite ne réécrit pas un mouvement validé.
+- **Contrôle de cohérence** (`DistMouvement::controlLocaux()`) : **bloquant** si un local appartient à un site d'un autre registre ou n'existe pas ; **avertissements** non bloquants (pas de local de destination/d'origine, production en entrepôt hors douane, passage hors douane → sous douane, DAE depuis un local hors douane, DSA depuis un local sous douane) ; **information** « mise à la consommation » (sous douane → hors douane), avec badge sur la fiche et la liste. **Le régime ne bloque pas encore les mouvements** : seules les règles confirmées par la douane le feront (EVOLUTIONS #35).
+- **Suppression d'un local refusée** tant que des mouvements y sont rattachés.
+- Les corrections d'un mouvement reprennent ses locaux.
+
+### Modifications
+- Schéma : colonnes `fk_local_origine`, `fk_local_destination`, `regime_origine`, `regime_destination` ajoutées **en fin de table** `dist_mouvement` (même ordre que sur une base mise à jour, pour la synchronisation multi-sites), auto-créées à l'ouverture des écrans ou par SQL Upgrade.
+- Les fiches de mouvement utilisent `distillerie_redirect()` à la place de `header('Location:')` (validation et suppression).
+
+### Tests
+- Nouveau `t_14_mouvement_locaux.php` (45 contrôles) : règles pures, création/refus, régime figé à la validation, rattachement d'un brouillon, correction, suppression protégée. Mutations vérifiées (contrôle de registre, régime figé, suppression). Harnais : `SELECT … FOR UPDATE` traduit pour SQLite.
+- **À valider sur ton instance** : (1) SQL Upgrade doit proposer/ajouter les 4 colonnes de `dist_mouvement` ; (2) créer une production avec un local de destination entrepôt sous douane, la valider, et vérifier le badge de régime ; (3) un mouvement sous douane → hors douane affiche « Mise à la consommation » ; (4) un local d'un autre registre est refusé ; (5) la suppression d'un local utilisé est refusée ; (6) tes anciens mouvements (sans local) s'affichent toujours et se valident.
+
+---
+
+## [0.17.1] — 2026-11-05
+
+### Modifications
+- **« Chai » devient « Local » partout** (noms internes compris) : classe `DistChai` → `DistLocal`, table `dist_chai` → `dist_local`, colonne `nom_chai` → `nom_local`, pages `distchai_*.php` → `distlocal_*.php`, clés de langue `DistChai*` → `DistLocal*`, `sql/llx_dist_chai.sql` → `sql/llx_dist_local.sql`, références `CHAI-nnn` → `LOC-nnn`. La **catégorie « chai »** d'un local est conservée (un chai est un type de local).
+- **Migration non destructive et idempotente** (`distillerie_migrate_chai_to_local()`) : exécutée à l'ouverture des pages Sites/Locaux, à l'activation du module et dans SQL Upgrade. La table existante est **renommée** (données conservées), la colonne renommée, les références `CHAI-nnn` réécrites en `LOC-nnn`. Si l'activation a créé une table `dist_local` vide, elle est remplacée par l'ancienne ; si les deux tables contiennent des données, rien n'est touché (erreur au journal système). Les anciennes entrées du journal d'audit gardent le nom `dist_chai`.
+- Clés de langue obsolètes supprimées (`Chai`, `Chais`, `ChaiRef`, `NomChai`).
+
+### Documentation
+- **EVOLUTIONS.md** : règle de versions (sous-versions 0.17.x), phases revues, #1 et #2 marqués livrés, #5 livré, nouveaux points #35 (régime douanier → mouvements de registre), #36 (mouvements/stock/inventaire par local, carte), #37 (droits dédiés), #38 (aide hook/menus), #39 (mouvements automatiques depuis les distillations) ; tableau d'avancement par rapport aux documents « evolutions 0.14.2 » et « état des lieux 0.14.0 ».
+- README, CLAUDE.md, INSTALL.md et le répertoire `doc/` alignés (sites et locaux, validation d'import, compteur Tuya, noms internes).
+
+### Tests
+- `t_13_sites.php` : 69 contrôles dont la migration `dist_chai` → `dist_local` (renommage, références, double table refusée, table vide remplacée). Harnais : `free()` libère le curseur, traduction de `CHANGE` / `CONCAT`.
+- **À valider sur ton instance** : après mise à jour, ouvrir « Sites et Locaux > Locaux » : tes locaux existants doivent apparaître (références `LOC-…`) ; vérifier dans Historique que les nouvelles écritures portent la table `dist_local`. Réactiver le module si les menus n'ont pas changé.
+
+---
+
+## [0.17.0] — 2026-11-05
+
+### Nouveautés
+- **Rubrique « Sites et Locaux »** dans le menu de gauche, au même niveau que « Registres » (Sites, Nouveau site, Locaux, Nouveau local). Les deux entrées ne sont plus sous « Registres ».
+- **« Chais » devient « Locaux »** : un local est un **Chai, un Atelier, un Entrepôt** ou autre (nouvelle colonne `categorie`). L'ancien type principal / secondaire est conservé comme « Rôle du local ». Filtre par catégorie dans la liste.
+- **Entrepôt : régime douanier obligatoire** — *Sous douane* (accises non acquittées) ou *Hors douane* (accises acquittées). Ignoré pour les autres catégories.
+- **Lien facultatif vers un entrepôt Dolibarr** (module Stock) : liste déroulante des entrepôts existants, lien direct vers la fiche stock ; un entrepôt peut rester sans lien.
+
+### Migration
+- Trois colonnes ajoutées à `dist_chai` (`categorie` défaut `chai`, `regime_douane`, `fk_entrepot`) : automatiquement à l'ouverture des pages Locaux, à l'activation du module et via SQL Upgrade. Les locaux saisis en 0.16.0 deviennent des « chai », sans perte.
+
+### Tests
+- `t_13_sites.php` : 65 contrôles (catégories, régime obligatoire pour un entrepôt, lien Dolibarr valide/inexistant/absent, champs ignorés hors entrepôt, mise à jour, migration d'une table 0.16.0, menus).
+- **À valider sur ton instance** : réactiver le module (nouveau menu), vérifier que tes éventuels locaux 0.16.0 apparaissent comme « Chai », créer un entrepôt sous douane lié à un entrepôt Stock, un entrepôt hors douane sans lien, et un atelier.
+
+### Limites connues
+- Les accises (acquittées / non acquittées) ne pilotent pas encore les mouvements de registre : c'est une information portée par le local (`DistChai::accisesAcquittees()`), prête pour un rattachement mouvement → local.
+- Noms internes inchangés (`DistChai`, `dist_chai`, `distchai_*.php`) : seul le libellé de l'interface est « Locaux ».
+
+---
+
+## [0.16.0] — 2026-11-05
+
+### Nouveautés — Sites et chais (RÈGLE 02, EVOLUTIONS #5)
+- **Sites d'exploitation** : liste, fiche, création, modification, suppression (`distsite_list.php`, `distsite_card.php`, classe `DistSite`). Champs : référence automatique `SITE-001`, nom, type (distillerie / vitivinicole / autre), registre rattaché, adresse, commune, arrondissement, canton, population, siège de la comptabilité matières, autorisation DGDDI (texte, numéro, date).
+- **Chais et locaux** : liste, fiche, création, modification, suppression (`distchai_list.php`, `distchai_card.php`, classe `DistChai`). Référence `CHAI-001`, site, type (principal / secondaire), adresse, superficie, capacité (L, hL, kg, m3), description. Ajout rapide d'un chai depuis la fiche du site.
+- **Liaison site → registre → mouvements** : la fiche du site renvoie à son registre et indique le nombre de mouvements de ce registre, avec lien vers la liste filtrée.
+- Menus **Sites d'exploitation** et **Chais et locaux** sous « Registres » (droits registre lecture / écriture).
+- Toutes les écritures sont **auditées** (création, modification, suppression dans l'Historique) ; jeton CSRF vérifié ; redirections sûres après POST ; suppression d'un site refusée tant qu'il contient des chais ; références en double refusées avec un message clair.
+
+### Tests
+- Nouveau `t_13_sites.php` (43 contrôles) : validations, références, CRUD audité, unicité, suppression protégée, droits/CSRF/redirections des pages, menus.
+- **À valider sur ton instance** : désactiver puis réactiver le module (pour afficher les nouveaux menus), créer un site rattaché à ton registre, y ajouter un chai, tenter de supprimer le site (refusé), supprimer le chai puis le site, vérifier les lignes dans Historique.
+
+### Limites connues
+- Le type de site propose « distillerie » en plus de « vitivinicole » / « autre » prévus par le schéma initial (colonne libre).
+- Pas encore de rattachement des mouvements à un site précis (le site hérite du registre) ni de carte des sites.
+
+---
+
+## [0.15.1] — 2026-11-05
+
+### Nouveautés
+- **Données initiales du dictionnaire Alambic** : à l'activation du module, deux alambics sont créés — `ALAMBIC194` et `ALAMBIC195` (« Alambic Distillation 50L », état Neuf, n° de série et n° de douane `971C194` / `971C195`, actifs, positions 0 et 1, date de mise en service vide).
+- Insertion idempotente (`INSERT IGNORE`, clés uniques code/entité, n° de série, n° de douane) : aucun doublon si ces alambics existent déjà.
+- Comme les autres dictionnaires, ils sont recréés après désactivation/réactivation du module (la désactivation supprime les dictionnaires). Sur une instance déjà active, rien n'est modifié sans réactivation.
+
+### Tests
+- `t_04_schema.php` : présence des deux alambics et de leurs champs dans le descripteur.
+
+---
+
+## [0.15.0] — 2026-11-05
+
+### Nouveautés
+- **Le compteur électrique devient un équipement Tuya comme les autres.** Le « Device ID » quitte l'onglet Intégration (qui ne garde que les identifiants du compte Tuya et un test de jeton) ; le compteur se gère dans **Équipements Tuya** (mesures, échelles, conversion, activation, « Tester / découvrir »).
+- **Migration non destructive** (automatique au premier chargement, tout ou rien, journalisée) : création de l'équipement « Compteur électrique » avec ses 3 mesures (Puissance W, Énergie kWh, Température ambiante °C, mêmes échelles qu'avant) et **copie de tous les relevés existants** vers les relevés d'équipements. Les anciennes colonnes de `dist_distil_line` et la constante du Device ID sont **conservées** (obsolètes, plus lues). Sans Device ID mais avec un historique : équipement créé inactif (réactivez-le pour revoir l'historique).
+- **Ligne REPRISE : relevé Tuya capturé** comme pour une ligne normale (fin de EVOLUTIONS #16).
+- Fiche distillation et PDF : plus de colonnes dédiées ; les relevés du compteur apparaissent comme les autres équipements (ordre : compteur d'abord).
+
+### Modifications
+- `TuyaClient::getMeterValues()` supprimée ; `testConnection()` vérifie les identifiants (jeton neuf). `isConfigured()` n'exige plus de Device ID.
+- Modification d'une ligne : les valeurs du compteur se corrigent comme celles des autres équipements.
+
+### Tests
+- Nouveau `t_12_meter.php` (25 contrôles) : migration, valeurs copiées/NULL ignorées, idempotence, non-destruction, cas sans Device ID. Harnais : doublures `SHOW TABLES`/`information_schema` et `admin.lib.php`. `t_10_pdf.php` adapté.
+- **À valider sur ton instance** : 1) ouvrir Équipements Tuya (l'équipement « Compteur électrique » doit exister avec 3 mesures) ; 2) ouvrir une ancienne distillation (valeurs identiques à avant) ; 3) ajouter une ligne et une REPRISE (relevés capturés) ; 4) « Tester la connexion » en Intégration ; 5) PDF avec relevés.
+
+---
+
+## [0.14.5] — 2026-11-05
+
+### Nouveautés (EVOLUTIONS #1 et #2)
+- **Import Excel — contrôle des valeurs hors norme** avant écriture, par production :
+  - **Erreur (production refusée)** : valeur négative (poids, volume…), date de récolte illisible, TAV > 100 %.
+  - **Avertissement (confirmation requise)** : TAV > 96 %, date de récolte future ou antérieure à 1990, date d'étape antérieure à la récolte, somme des coupes supérieure au volume de départ (suggéré ou saisi).
+  - S'il reste des avertissements, le bouton devient **« Importer quand même »** ; le serveur refuse l'import sans cette confirmation (la prévisualisation est réaffichée, le fichier temporaire conservé).
+- **Prévisualisation** : étapes détectées par production, avec le nombre de champs renseignés (ex. `RECOLTE (4/5) → DISTILLATION (6/8)`).
+
+### Tests
+- Nouveau `t_11_importcheck.php` (19 contrôles) : TAV, négatifs (dont la plage « 8-10% » non confondue), dates, volumes, résumé des étapes, présence de la confirmation côté serveur.
+- **À valider sur ton instance** : importer un fichier contenant une valeur négative et un TAV à 97 % ; vérifier le message, le bouton « Importer quand même » et le refus de la production en erreur.
+
+---
+
+## [0.14.4] — 2026-11-05
+
+### Corrections
+- **Export PDF impossible dès qu'un alambic est renseigné** : `distillerie_get_dictionary_label('Alambic', id)` était appelé sans `$db` (PDF de la distillation, `distdistil_card.php`) ; PHP 8 lève `ArgumentCountError` (arguments manquants) → page blanche / HTTP 500. Même défaut dans l'onglet « Distillations » de la fiche production (`distprod_card.php`). Appels corrigés (`$db, 'Alambic', id, $conf->entity`). Test statique ajouté au harnais (arité).
+
+### Nouveautés
+- **PDF de la distillation (EVOLUTIONS #16)** :
+  - **Date de chaque ligne** : date enregistrée (`date_line`, 0.13.3) ou, à défaut, déduite du début de distillation (+1 jour à chaque passage de minuit), comme à l'écran.
+  - **Relevés** : colonnes Puissance (W), Énergie (kWh), Température ambiante et **une colonne par mesure d'équipement Tuya** (en-tête : mesure + unité, équipement dessous). Une colonne n'apparaît que si au moins une ligne porte une valeur.
+  - **Orientation automatique** : portrait pour le tableau de base ; paysage dès qu'il y a des relevés ; largeurs mises à l'échelle pour occuper exactement la largeur utile (police réduite si le tableau est très large).
+  - **En-tête du tableau répété** sur chaque page qui porte des lignes ; ligne REPRISE en italique grisée ; cumuls et signatures jamais coupés.
+- Code du PDF déplacé dans `lib/distilpdf.lib.php` (plan des colonnes, rendu, pied de page) et calculs d'heures/durées/dates dans `lib/distillerie.lib.php` : testables hors page Dolibarr.
+
+### Tests
+- Nouveau `t_10_pdf.php` : plan des colonnes + **rendu réel TCPDF 6.7.5** relu avec `pdftotext` (titre, dates déduites et enregistrées, REPRISE, en-tête répété sur chaque page, aucune page vide, « Page x / y » sur chaque page, valeurs et libellés des colonnes Tuya, cumuls, signatures). Rendus visuels vérifiés en image (portrait 1 page ; paysage 4 pages). TCPDF : variable `TCPDF_PATH` (ignoré s'il est absent).
+- **À valider sur ton instance** : PDF d'une distillation avec alambic, avec relevés compteur et équipements, et plus de 25 lignes (pagination, en-tête répété, pied de page) ; onglet « Distillations » d'une production avec alambic.
+- Reste de #16 : la ligne REPRISE capturera ses relevés Tuya dans la 0.15.0 (une fois le compteur unifié aux autres équipements, un seul mécanisme de relevé).
+
+---
+
+## [0.14.3] — 2026-11-05
+
+### Corrections
+- **Dette de langue** (EVOLUTIONS #19), vérifiée contre `Translate::load()` de Dolibarr 23.0.3 : en cas de clé en double, **la première définition gagne** (`if (empty($this->tab_translate[$key]))`). 17 clés en double supprimées en fr_FR et 29 en en_US : la valeur affichée reste celle qui l'était déjà, aucun changement visible, sauf le point suivant.
+- **« Distillation créée automatiquement »** : la génération automatique depuis une étape de production (`production_step.php`) affichait « Distillation créée » ; nouvelle clé `DistillationCreatedAuto`.
+- **Textes affichés en anglais sur l'interface française** : 14 clés ajoutées en fr_FR (`Steps`, `AddStep`, `SelectStepThenFillFields`, `LinkedDistillation`, `Thermostat`, `VolumeMl`, `CutType`, `AlambicAdmin`, `DistillerieSetup`, `DistillerieSetupPage`, `Settings`, `DistillerieProductions`, `DistillerieDistillations`) et 7 clés sans définition dans aucune langue (`Distillerie`, `TAV`, `Fruit`, `Step`, `Temperature`, `Duration`, `WorkflowCompleted`) ; 8 clés fr ajoutées en en_US (`CalculStocksMensuels`, `ImportDAE`…).
+- **Titre des onglets** de l'historique et de l'import : la clé `Module103258Name` (identifiant du gabarit ModuleBuilder, jamais définie) est remplacée par `ModuleDistillerieName`.
+- 11 reliquats du gabarit ModuleBuilder retirés de en_US (`MyWidget`, `DISTILLERIE_MYPARAM1/2`…), valeur « ` About` » (espace initial) corrigée, lignes « `CLE = valeur` » normalisées.
+
+### Tests
+- Harnais : les doublons, la parité fr/en, les espaces de bord, les reliquats du gabarit et les clés `trans()` sans définition **font maintenant échouer** `t_02` (liste des clés fournies par le cœur : `test/harness/core_lang_keys.txt`, 96 clés). Mutation vérifiée (retrait de `Fruit` détecté).
+- **À valider sur ton instance** : parcourir fiche production, fiche distillation (tableau de relevés), historique, import, Configuration ; plus aucun libellé anglais ni `?Clé` attendu.
+
+---
+
+## [0.14.2] — 2026-11-05
+
+### Nouveautés
+- **Harnais de test livré dans le module** (`test/harness/`, `php test/harness/run.php`) : exécute le vrai code contre des doublures de Dolibarr et une base SQLite créée depuis les scripts `sql/llx_*.sql`. 9 fichiers : règles dures, langues, cohérence des versions, schéma et `$fields` des classes, audit transactionnel (création / modification / suppression / verrouillage / rollback si l'audit échoue / secrets masqués), reconnexion de secours (avec `$conf->db->pass` supprimé comme dans Dolibarr 23.0.3), hook des dictionnaires (base fermée), CSRF, aller-retour XLSX. Validé par trois mutations volontaires (ancien `withLiveDb`, champ de classe inexistant, jeton CSRF retiré) : toutes détectées. `test/harness/README.md` décrit usage et limites.
+- Le harnais signale (sans échec) de la **dette connue**, consignée en EVOLUTIONS #19 : clés de langue en double (fr 17, en 28) à valeurs divergentes, 8 clés utilisées présentes seulement en en_US (affichées en anglais en français), reliquats du gabarit ModuleBuilder, cURL natif (`TuyaClient`, `DistIntegration`), 13 `header('Location:')` hors dictionnaires.
+
+### Modifications
+- **EVOLUTIONS.md** réorganisé : ordre de priorité validé (A compléments PDF/import → B non-apurement → C inventaires annuels → D registres vitivinicoles → E exports Excel et tests → F propositions), dépendances, nouveaux points #19 à #34 (dette du harnais, intégration continue, propositions) et tableau de suivi.
+- **CLAUDE.md** : section « Harnais de test » remplace « harness non livrés ». Aucun changement de code du module (hors fichiers de test).
+
+---
+
+## [0.14.1] — 2026-11-05
+
+### Corrections
+- **Reconnexion de secours de l'audit (défaut de 0.14.0)** : `DistAudit::withLiveDb()` rouvrait la base avec `$conf->db->pass`, or Dolibarr 23.0.3 supprime cette valeur (`unset($conf->db->pass)`, `master.inc.php` l.257). La connexion temporaire échouait donc sans message et l'audit de la configuration, des dictionnaires natifs et le marqueur « import interrompu » n'étaient probablement toujours pas écrits. Le mot de passe est maintenant lu dans la globale `$dolibarr_main_db_pass` (conservée et décodée par le cœur). Factorisé dans `DistAudit::openFreshDb()`.
+- **Échec plus jamais muet** : si la reconnexion est impossible, `dol_syslog(LOG_WARNING)` consigne « écriture d'audit perdue » avec le motif.
+- **Autodiagnostic** : nouveau contrôle « Reconnexion de secours de l'audit » (ouvre puis ferme une connexion temporaire ; KO avec le motif si impossible).
+- Commentaire de `admin/import_productions.php` reformulé (ne mentionne plus `dol_delete_file`, `@unlink` volontaire).
+- **À valider sur ton instance** : modifier un réglage (Configuration > Setup), puis un dictionnaire natif, et vérifier les lignes dans Configuration > Historique ; l'Autodiagnostic doit afficher le contrôle de reconnexion en vert. Les audits de configuration journalisés avant cette version n'existent pas.
+- Tests : le correctif a été vérifié par un script isolé (`$conf->db->pass` absent + globale renseignée → connexion obtenue, `$db` restauré ; mauvais mot de passe → `null` + trace ; base vivante → appel direct). Le harness complet n'était pas disponible dans cette session.
+
+---
+
+## [0.14.0] — 2026-11-05
+
+### Audit des dictionnaires natifs (RÈGLE 04) + correctif de l'audit de configuration
+- **Dictionnaires natifs journalisés** : Fruits, États, Nettoyage, Broyage, Fûts, Types de registre (et Alambic) sont modifiés par `admin/dict.php` du cœur. Dolibarr 23.0.3 appelle un hook `doActions` (contexte `dictionaryadmin`) avant toute écriture : le module l'utilise (`class/actions_distillerie.class.php`, déclaré dans `$this->hooks` du descripteur). Photo de la table avant, puis une entrée par ligne créée / modifiée (avant → après) / supprimée / activée-désactivée dans Configuration > Historique (tables `dist_dict_*`). Le hook ne bloque jamais l'action du cœur.
+- **Limite** : la journalisation se fait à l'arrêt du script, hors de la transaction du cœur (le cœur ne l'expose pas) ; si l'écriture échoue côté cœur, rien n'est journalisé (aucune différence).
+- **Défaut corrigé, présent depuis 0.12.7** : Dolibarr ferme la base dans `dol_shutdown`, enregistré avant toute fonction d'arrêt du module. L'audit de la configuration (`admin/setup.php`, `admin/integration.php`) s'exécutait donc sur une base fermée (« mysqli object is already closed », avalé par un `try/catch`) et **n'écrivait probablement rien**. Nouveau `DistAudit::withLiveDb()` : connexion temporaire si la base est fermée. Appliqué aux deux pages, aux dictionnaires et au marqueur « import interrompu » (`DistImport`, qui échouait de la même façon : le lot restait « en cours » jusqu'au seuil de 15 minutes).
+- **Autodiagnostic** : nouveau contrôle « hook dictionaryadmin enregistré ».
+- **À faire à la mise à jour** : le hook n'est enregistré qu'à l'activation. Désactiver puis réactiver le module (Configuration > Modules), sinon les dictionnaires ne sont pas journalisés (l'Autodiagnostic le signale).
+- Tests : nouveau harness `dictaudit.php` (21 contrôles : photo/différences, filtrage des actions, base fermée à l'arrêt, connexion impossible). Les changements de configuration journalisés avant 0.14.0 n'existent pas : l'historique de configuration ne commence qu'à cette version.
+
+---
+
 ## [0.13.5] — 2026-11-05
 
 ### Documentation (aucun changement de code)
