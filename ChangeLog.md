@@ -2,6 +2,20 @@
 
 ---
 
+## [0.23.0] — 2026-11-06
+
+### Ajouté (phase D : inventaires, fin)
+- **PDF signé archivé** : sur la fiche d'un inventaire **validé**, dépôt du PDF signé (PDF réel, 10 Mo maximum) rangé dans le dossier de documents du module (`inventaires/<référence>/`), nom horodaté ; un document archivé ne peut **ni être remplacé ni être supprimé** ; liste et téléchargement sur la fiche ; dépôt audité ; jeton CSRF.
+- **Relances e-mail des inventaires** : pour les inventaires annuels non validés, un e-mail quand l'échéance est dans les 30 jours, puis chaque semaine tant qu'ils sont en retard (un seul e-mail pour tous les inventaires concernés ; un envoi en échec est retenté). Nouvelle tâche planifiée « Distillerie : relance des inventaires en retard » (créée **désactivée**), bouton « Contrôler maintenant » et champ « Destinataires des relances d'inventaire » dans Configuration > Automatisations (à défaut, destinataires des alertes de capacité). Nouvelle table `llx_dist_inventaire_relance`.
+- **Inventaire d'ouverture assisté** : nouveau type d'inventaire « Ouverture » (un seul par registre, sans date limite, jamais relancé). Une ligne par local, ajout de lignes par produit, **sans justification d'écart** ; panneau de bilan (total compté, locaux restés vides, stock Dolibarr non rattaché à un local). La régularisation crée les **excédents** en mouvements « détention » (neutres dans la déclaration mensuelle, en brouillon) et les déficits en sorties.
+
+### Tests
+- `t_22_phase_d.php` (67 contrôles) ; 7 mutations vérifiées (nature d'ouverture, rythme et borne des relances, validation du nom de fichier, non-écrasement, justification, unicité de l'ouverture).
+- **À valider sur ton instance** : (1) Configuration > Automatisations : ligne « Relance des inventaires » et champ des destinataires ; cliquer « Contrôler maintenant » avec un inventaire annuel en retard : e-mail reçu, un second clic ne renvoie rien ; (2) Configuration > Travaux planifiés : la tâche de relance existe, désactivée (si le module était déjà activé : le descripteur ne recrée pas les tâches, désactiver/réactiver le module ou la créer à la main) ; (3) valider un inventaire, déposer un PDF signé : il apparaît dans la liste, se télécharge, et un fichier non PDF est refusé ; (4) créer un inventaire de type « Ouverture » : un second est refusé ; compter les locaux, valider sans justification, générer la régularisation : des mouvements « Détention » en brouillon, à valider ; (5) vérifier le panneau de bilan et l'affichage du type dans la liste et le PDF ; (6) l'écriture dans le dossier de documents dépend des droits du serveur (non testable ici).
+- **À valider avec la douane / le comptable** : la nature « détention » pour initialiser le stock d'ouverture.
+
+---
+
 ## [0.22.0] — 2026-11-06
 
 ### Ajouté (phase B : régime douanier des locaux → registre)
